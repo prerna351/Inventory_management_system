@@ -11,19 +11,32 @@ CLASS zcl_inventory DEFINITION
                quantity TYPE i,
              END OF Ty_item.
 
-    METHODS:
-    add_item
+    METHODS search_item        "----------SEARCH ITEM METHOD DEFINITION"
+     IMPORTING
+         i_item_id TYPE string
+     RETURNING
+        VALUE(rs_item) TYPE ty_item.
+
+
+    METHODS add_item           "----------ADD ITEM METHOD DEFINITION
     "Methods to add inventory items
       IMPORTING
         i_item_id TYPE string
         i_name type string
         i_quantity type i.
 
-    METHODS get_item_count
+    METHODS get_item_count  
       RETURNING VALUE(rv_count) TYPE i.
 
     METHODS get_total_quantity
         RETURNING VALUE(rv_total) TYPE i.
+
+    METHODS update_quantity    "----------UPDATE QUANTITY METHOD DEFINITION
+    "Read item by id
+    "update quantity
+        IMPORTING
+            i_item_id TYPE string
+            i_new_quantity TYPE i.
 
 
   PRIVATE SECTION.
@@ -36,7 +49,19 @@ ENDCLASS.
 
 CLASS zcl_inventory IMPLEMENTATION.
 
-    method add_item.
+    METHOD search_item.        "------------SEARCH ITEM METHOD IMPLEMENTATION
+
+        READ TABLE it_inventory INTO rs_item
+        WITH KEY item_id = i_item_id.
+
+        IF sy-subrc <> 0.
+            ASSERT 1 = 0. " Item not found
+        ENDIF.
+
+    ENDMETHOD.
+
+
+    method add_item.          "------------ADD ITEM METHOD IMPLEMENTATION
 
       "INPUT VALIDATION
        ASSERT i_quantity >= 0. " Prevent negative stock
@@ -59,6 +84,25 @@ CLASS zcl_inventory IMPLEMENTATION.
         LOOP AT it_inventory INTO DATA(ls_item).
             rv_total += ls_item-quantity.
         endLOOP.
+    ENDMETHOD.
+
+    METHOD update_quantity.       "------------UPDATE ITEM METHOD IMPLEMENTATION
+
+        "input validation
+        ASSERT i_new_quantity >= 0. "prevent negative stock
+
+        READ TABLE it_inventory INTO DATA(ls_item)
+            WITH KEY item_id = i_item_id.
+
+        if sy-subrc <> 0. "<> means not equal to
+            ASSERT 1 = 0. "ITEM NOT FOUND
+        ENDIF.
+
+        ls_item-quantity = i_new_quantity.
+
+        MODIFY it_inventory FROM ls_item
+            TRANSPORTING quantity
+            WHERE item_id = i_item_id.
     ENDMETHOD.
 
 ENDCLASS.
