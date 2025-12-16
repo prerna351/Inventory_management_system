@@ -38,6 +38,9 @@ CLASS zcl_inventory DEFINITION
             i_item_id TYPE string
             i_new_quantity TYPE i.
 
+    METHODS delete_item        "----------DELETE ITEM METHOD DEFINITION
+        IMPORTING
+        i_item_id TYPE string.
 
   PRIVATE SECTION.
   "Internal table to store inventory item
@@ -103,6 +106,16 @@ CLASS zcl_inventory IMPLEMENTATION.
         MODIFY it_inventory FROM ls_item
             TRANSPORTING quantity
             WHERE item_id = i_item_id.
+    ENDMETHOD.
+
+    METHOD delete_item.          "------------DELETE ITEM METHOD IMPLEMENTATION
+
+        DELETE it_inventory WHERE item_id = i_item_id.
+
+        IF sy-subrc <> 0.
+            ASSERT 1 = 0. " Item not found
+        ENDIF.
+
     ENDMETHOD.
 
 ENDCLASS.
