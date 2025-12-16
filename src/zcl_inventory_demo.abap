@@ -52,6 +52,11 @@ CLASS zcl_inventory_demo IMPLEMENTATION.
     out->write( |Updated quantity for book applied.| ).
     out->write( |Total quantity now:{ lo_inventory->get_total_quantity( ) }| ).
 
+    lo_inventory->delete_item( 'I001' ).
+
+    out->write( |Item I001 deleted.| ).
+    out->write( |Remaining item count: { lo_inventory->get_item_count( ) }| ).
+
     ENDMETHOD.
 
 ENDCLASS.
