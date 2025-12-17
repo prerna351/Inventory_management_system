@@ -25,7 +25,7 @@ CLASS zcl_inventory DEFINITION
         i_name type string
         i_quantity type i.
 
-    METHODS get_item_count  
+    METHODS get_item_count
       RETURNING VALUE(rv_count) TYPE i.
 
     METHODS get_total_quantity
@@ -54,13 +54,16 @@ CLASS zcl_inventory IMPLEMENTATION.
 
     METHOD search_item.        "------------SEARCH ITEM METHOD IMPLEMENTATION
 
-        READ TABLE it_inventory INTO rs_item
+        "define field-symbols
+        FIELD-SYMBOLS <fs_item> TYPE ty_item.
+        READ TABLE it_inventory INTO <fs_item>
         WITH KEY item_id = i_item_id.
 
         IF sy-subrc <> 0.
             ASSERT 1 = 0. " Item not found
         ENDIF.
 
+        rs_item = <fs_item>.
     ENDMETHOD.
 
 
@@ -84,8 +87,8 @@ CLASS zcl_inventory IMPLEMENTATION.
     METHOD get_total_quantity.
         rv_total = 0.
 
-        LOOP AT it_inventory INTO DATA(ls_item).
-            rv_total += ls_item-quantity.
+        LOOP AT it_inventory ASSIGNING FIELD-SYMBOL(<fs_item>). "in line declaration of field-symbols
+            rv_total += <fs_item>-quantity.
         endLOOP.
     ENDMETHOD.
 
@@ -94,18 +97,19 @@ CLASS zcl_inventory IMPLEMENTATION.
         "input validation
         ASSERT i_new_quantity >= 0. "prevent negative stock
 
-        READ TABLE it_inventory INTO DATA(ls_item)
+        "define field-symbols
+        FIELD-SYMBOLS <fs_item> TYPE ty_item.
+
+        READ TABLE it_inventory ASSIGNING <fs_item>
             WITH KEY item_id = i_item_id.
 
         if sy-subrc <> 0. "<> means not equal to
             ASSERT 1 = 0. "ITEM NOT FOUND
         ENDIF.
 
-        ls_item-quantity = i_new_quantity.
+        <fs_item>-quantity = i_new_quantity.
 
-        MODIFY it_inventory FROM ls_item
-            TRANSPORTING quantity
-            WHERE item_id = i_item_id.
+
     ENDMETHOD.
 
     METHOD delete_item.          "------------DELETE ITEM METHOD IMPLEMENTATION
