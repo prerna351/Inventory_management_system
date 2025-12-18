@@ -13,6 +13,9 @@ CLASS zcl_inventory DEFINITION
 
              tt_item TYPE STANDARD TABLE OF ty_item WITH EMPTY KEY.
 
+    METHODS load_from_db.      "----------LOAD DATA FROM DATABASE METHOD DEFINITION
+
+
     METHODS search_item        "----------SEARCH ITEM METHOD DEFINITION"
      IMPORTING
          i_item_id TYPE string
@@ -48,12 +51,16 @@ CLASS zcl_inventory DEFINITION
         IMPORTING
         i_quantity TYPE i
         RETURNING VALUE(rt_items) TYPE tt_item.
-
+    
+    METHODS save_to_db.
+    
 
   PRIVATE SECTION.
   "Internal table to store inventory item
     DATA it_inventory TYPE SORTED TABLE OF ty_item
     WITH UNIQUE KEY item_id.
+    
+    
 
 
 ENDCLASS.
@@ -61,6 +68,19 @@ ENDCLASS.
 
 
 CLASS zcl_inventory IMPLEMENTATION.
+
+    METHOD load_from_db.      "------------LOAD DATA FROM DATABASE METHOD IMPLEMENTATION
+
+        "Clear existing in-memory data
+        CLEAR it_inventory.
+
+        "Read from database into internal table
+        SELECT item_id,
+         name,
+         quantity
+         FROM zinv_item
+         INTO TABLE @it_inventory.
+    ENDMETHOD.
 
     METHOD search_item.        "------------SEARCH ITEM METHOD IMPLEMENTATION
 
@@ -146,5 +166,6 @@ CLASS zcl_inventory IMPLEMENTATION.
     ( ls_item )
   ).
     ENDMETHOD.
+    
 
 ENDCLASS.
