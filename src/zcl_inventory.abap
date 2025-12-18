@@ -9,7 +9,9 @@ CLASS zcl_inventory DEFINITION
                item_id  TYPE string,
                name     TYPE string,
                quantity TYPE i,
-             END OF Ty_item.
+             END OF Ty_item,
+
+             tt_item TYPE STANDARD TABLE OF ty_item WITH EMPTY KEY.
 
     METHODS search_item        "----------SEARCH ITEM METHOD DEFINITION"
      IMPORTING
@@ -42,9 +44,17 @@ CLASS zcl_inventory DEFINITION
         IMPORTING
         i_item_id TYPE string.
 
+    METHODS filter_item_using_quantity  "----------FILTER ITEM METHOD DEFINITION
+        IMPORTING
+        i_quantity TYPE i
+        RETURNING VALUE(rt_items) TYPE tt_item.
+
+
   PRIVATE SECTION.
   "Internal table to store inventory item
-    DATA it_inventory TYPE STANDARD TABLE OF ty_item WITH EMPTY KEY.
+    DATA it_inventory TYPE SORTED TABLE OF ty_item
+    WITH UNIQUE KEY item_id.
+
 
 ENDCLASS.
 
@@ -73,11 +83,16 @@ CLASS zcl_inventory IMPLEMENTATION.
        ASSERT i_quantity >= 0. " Prevent negative stock
 
       "Add inputs to the internal table
-      APPEND VALUE ty_item(
-        item_id = i_item_id
-        name = i_name
+      INSERT VALUE ty_item(
+        item_id  = i_item_id
+        name     = i_name
         quantity = i_quantity
-      ) to it_inventory.
+        ) INTO TABLE it_inventory.
+
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0. " Duplicate item_id
+      ENDIF.
+
     endmethod.
 
     METHOD get_item_count.
@@ -85,11 +100,12 @@ CLASS zcl_inventory IMPLEMENTATION.
     ENDMETHOD.
 
     METHOD get_total_quantity.
-        rv_total = 0.
 
-        LOOP AT it_inventory ASSIGNING FIELD-SYMBOL(<fs_item>). "in line declaration of field-symbols
-            rv_total += <fs_item>-quantity.
-        endLOOP.
+        rv_total = REDUCE I(
+            INIT total = 0
+            FOR ls_item IN it_inventory
+            NEXT total += ls_item-quantity
+        ).
     ENDMETHOD.
 
     METHOD update_quantity.       "------------UPDATE ITEM METHOD IMPLEMENTATION
@@ -120,6 +136,15 @@ CLASS zcl_inventory IMPLEMENTATION.
             ASSERT 1 = 0. " Item not found
         ENDIF.
 
+    ENDMETHOD.
+
+    METHOD filter_item_using_quantity. "-------------FILTER ITEM METHOD IMPLEMENTATION
+
+        rt_items = VALUE tt_item(
+    FOR ls_item IN it_inventory
+    WHERE ( quantity > i_quantity )
+    ( ls_item )
+  ).
     ENDMETHOD.
 
 ENDCLASS.
