@@ -23,12 +23,14 @@ CLASS zcl_inventory DEFINITION
         VALUE(rs_item) TYPE ty_item.
 
 
-    METHODS add_item           "----------ADD ITEM METHOD DEFINITION
-    "Methods to add inventory items
+    METHODS add_item            "----------ADD ITEM METHOD DEFINITION
       IMPORTING
-        i_item_id TYPE string
-        i_name type string
-        i_quantity type i.
+        i_item_id  TYPE string
+        i_name     TYPE string
+        i_quantity TYPE i
+      RETURNING
+        VALUE(rv_added) TYPE abap_bool.
+
 
     METHODS get_item_count
       RETURNING VALUE(rv_count) TYPE i.
@@ -76,6 +78,8 @@ ENDCLASS.
 
 
 
+
+
 CLASS zcl_inventory IMPLEMENTATION.
 
     METHOD load_from_db.      "------------LOAD DATA FROM DATABASE METHOD IMPLEMENTATION
@@ -106,23 +110,31 @@ CLASS zcl_inventory IMPLEMENTATION.
     ENDMETHOD.
 
 
-    method add_item.          "------------ADD ITEM METHOD IMPLEMENTATION
+    METHOD add_item.
 
-      "INPUT VALIDATION
-       ASSERT i_quantity >= 0. " Prevent negative stock
+        ASSERT i_quantity >= 0.
 
-      "Add inputs to the internal table
-      INSERT VALUE ty_item(
+        FIELD-SYMBOLS <fs_item> TYPE ty_item.
+
+        READ TABLE it_inventory ASSIGNING <fs_item>
+        WITH KEY item_id = i_item_id.
+
+        IF sy-subrc = 0.
+        "Item already exists
+            rv_added = abap_false.
+         RETURN.
+        ENDIF.
+
+        INSERT VALUE ty_item(
         item_id  = i_item_id
         name     = i_name
         quantity = i_quantity
         ) INTO TABLE it_inventory.
 
-      IF sy-subrc <> 0.
-        ASSERT 1 = 0. " Duplicate item_id
-      ENDIF.
+        rv_added = abap_true.
 
-    endmethod.
+ENDMETHOD.
+
 
     METHOD get_item_count.
         rv_count = lines( it_inventory ).
@@ -149,7 +161,8 @@ CLASS zcl_inventory IMPLEMENTATION.
             WITH KEY item_id = i_item_id.
 
         if sy-subrc <> 0. "<> means not equal to
-            ASSERT 1 = 0. "ITEM NOT FOUND
+             "ITEM NOT FOUND
+             RETURN.
         ENDIF.
 
         <fs_item>-quantity = i_new_quantity.
@@ -181,7 +194,7 @@ CLASS zcl_inventory IMPLEMENTATION.
         "create a local table
         DATA lt_db_items TYPE tt_db_item.
 
-        "Map buisness memory items to db-shaped items
+        "Map business memory items to db-shaped items
         lt_db_items = VALUE tt_db_item(
            FOR ls_item IN it_inventory
             (
@@ -192,17 +205,17 @@ CLASS zcl_inventory IMPLEMENTATION.
             )
           ).
 
-        "Delete existing inventory for this client only
-        DELETE FROM zinv_item.
+        TRY.
+          "Delete existing inventory for this client only
+          DELETE FROM zinv_item.
 
-       "Insert the new state
-        INSERT zinv_item FROM TABLE @lt_db_items.
+          "Insert the new state
+          INSERT zinv_item FROM TABLE @lt_db_items.
 
-        IF sy-subrc <> 0.
-            ASSERT 1 = 0. "DB Error
-        ENDIF.
-
-        COMMIT WORK.
+          COMMIT WORK.
+         CATCH cx_root INTO DATA(lx_error).
+          ROLLBACK WORK.
+        ENDTRY.
     ENDMETHOD.
 
 ENDCLASS.
