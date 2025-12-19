@@ -51,16 +51,25 @@ CLASS zcl_inventory DEFINITION
         IMPORTING
         i_quantity TYPE i
         RETURNING VALUE(rt_items) TYPE tt_item.
-    
+
     METHODS save_to_db.
-    
+
 
   PRIVATE SECTION.
   "Internal table to store inventory item
     DATA it_inventory TYPE SORTED TABLE OF ty_item
     WITH UNIQUE KEY item_id.
-    
-    
+
+    "DB row structure (NEW)
+    TYPES: BEGIN OF ty_db_item,
+         client   TYPE mandt,
+         item_id  TYPE c LENGTH 30,
+         name     TYPE c LENGTH 100,
+         quantity TYPE i,
+       END OF ty_db_item.
+
+
+    TYPES tt_db_item TYPE STANDARD TABLE OF ty_db_item WITH EMPTY KEY.
 
 
 ENDCLASS.
@@ -86,7 +95,7 @@ CLASS zcl_inventory IMPLEMENTATION.
 
         "define field-symbols
         FIELD-SYMBOLS <fs_item> TYPE ty_item.
-        READ TABLE it_inventory INTO <fs_item>
+        READ TABLE it_inventory ASSIGNING <fs_item>
         WITH KEY item_id = i_item_id.
 
         IF sy-subrc <> 0.
@@ -166,6 +175,34 @@ CLASS zcl_inventory IMPLEMENTATION.
     ( ls_item )
   ).
     ENDMETHOD.
-    
+
+    METHOD save_to_db.           "------------SAVE TO DATABASE METHOD IMPLEMENTATION
+
+        "create a local table
+        DATA lt_db_items TYPE tt_db_item.
+
+        "Map buisness memory items to db-shaped items
+        lt_db_items = VALUE tt_db_item(
+           FOR ls_item IN it_inventory
+            (
+            client   = sy-mandt
+            item_id  = ls_item-item_id
+            name     = ls_item-name
+            quantity = ls_item-quantity
+            )
+          ).
+
+        "Delete existing inventory for this client only
+        DELETE FROM zinv_item.
+
+       "Insert the new state
+        INSERT zinv_item FROM TABLE @lt_db_items.
+
+        IF sy-subrc <> 0.
+            ASSERT 1 = 0. "DB Error
+        ENDIF.
+
+        COMMIT WORK.
+    ENDMETHOD.
 
 ENDCLASS.
