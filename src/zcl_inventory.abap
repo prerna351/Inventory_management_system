@@ -62,16 +62,6 @@ CLASS zcl_inventory DEFINITION
     DATA it_inventory TYPE SORTED TABLE OF ty_item
     WITH UNIQUE KEY item_id.
 
-    "DB row structure (NEW)
-    TYPES: BEGIN OF ty_db_item,
-         client   TYPE mandt,
-         item_id  TYPE c LENGTH 30,
-         name     TYPE c LENGTH 100,
-         quantity TYPE i,
-       END OF ty_db_item.
-
-
-    TYPES tt_db_item TYPE STANDARD TABLE OF ty_db_item WITH EMPTY KEY.
 
     DATA lo_repository TYPE REF TO zcl_inventory_repository.
 
