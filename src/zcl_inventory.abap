@@ -55,7 +55,7 @@ CLASS zcl_inventory DEFINITION
         RETURNING VALUE(rt_items) TYPE tt_item.
 
     METHODS save_to_db.
-
+    METHODS constructor.
 
   PRIVATE SECTION.
   "Internal table to store inventory item
@@ -73,6 +73,9 @@ CLASS zcl_inventory DEFINITION
 
     TYPES tt_db_item TYPE STANDARD TABLE OF ty_db_item WITH EMPTY KEY.
 
+    DATA lo_repository TYPE REF TO zcl_inventory_repository.
+
+
 
 ENDCLASS.
 
@@ -82,17 +85,29 @@ ENDCLASS.
 
 CLASS zcl_inventory IMPLEMENTATION.
 
+    METHOD constructor.
+        lo_repository = NEW zcl_inventory_repository( ).
+    ENDMETHOD.
+
+
     METHOD load_from_db.      "------------LOAD DATA FROM DATABASE METHOD IMPLEMENTATION
 
+
+        DATA lt_db_items TYPE zcl_inventory_repository=>tt_db_item.
         "Clear existing in-memory data
         CLEAR it_inventory.
 
-        "Read from database into internal table
-        SELECT item_id,
-         name,
-         quantity
-         FROM zinv_item
-         INTO TABLE @it_inventory.
+        lt_db_items = lo_repository->load_inventory( ).   "--------db call
+
+        it_inventory = VALUE #(
+            FOR ls_db IN lt_db_items
+            (
+                item_id  = ls_db-item_id
+                name     = ls_db-name
+                quantity = ls_db-quantity
+            )
+        ).
+
     ENDMETHOD.
 
     METHOD search_item.        "------------SEARCH ITEM METHOD IMPLEMENTATION
@@ -192,10 +207,10 @@ ENDMETHOD.
     METHOD save_to_db.           "------------SAVE TO DATABASE METHOD IMPLEMENTATION
 
         "create a local table
-        DATA lt_db_items TYPE tt_db_item.
+        DATA lt_db_items TYPE zcl_inventory_repository=>tt_db_item.
 
         "Map business memory items to db-shaped items
-        lt_db_items = VALUE tt_db_item(
+        lt_db_items = VALUE #(
            FOR ls_item IN it_inventory
             (
             client   = sy-mandt
@@ -205,17 +220,7 @@ ENDMETHOD.
             )
           ).
 
-        TRY.
-          "Delete existing inventory for this client only
-          DELETE FROM zinv_item.
-
-          "Insert the new state
-          INSERT zinv_item FROM TABLE @lt_db_items.
-
-          COMMIT WORK.
-         CATCH cx_root INTO DATA(lx_error).
-          ROLLBACK WORK.
-        ENDTRY.
+        lo_repository->save_inventory( lt_db_items ).  "--------db call
     ENDMETHOD.
 
 ENDCLASS.
